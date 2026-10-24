@@ -1,34 +1,9 @@
 //! # ztm-backend
 //!
-//! A minimal Axum server exposing a single `/health-check` endpoint.
+//! Binary entry point: sets up tracing, binds the listener and serves the app.
 
-use axum::{Router, http::StatusCode, routing::get};
 use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-
-// ============================================================================
-// HANDLERS
-// ============================================================================
-
-/// Liveness probe for load balancers and monitoring.
-async fn health_check() -> StatusCode {
-    StatusCode::OK
-}
-
-// ============================================================================
-// ROUTER
-// ============================================================================
-
-fn app() -> Router {
-    Router::new()
-        .route("/health-check", get(health_check))
-        .layer(TraceLayer::new_for_http())
-}
-
-// ============================================================================
-// MAIN
-// ============================================================================
 
 #[tokio::main]
 async fn main() {
@@ -47,7 +22,7 @@ async fn main() {
 
     tracing::info!("🚀 Server listening on http://{addr}");
 
-    axum::serve(listener, app())
+    axum::serve(listener, ztm_backend::app())
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Server failed");
@@ -78,30 +53,4 @@ async fn shutdown_signal() {
     }
 
     tracing::info!("Shutdown signal received");
-}
-
-// ============================================================================
-// TESTS
-// ============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::{body::Body, http::Request};
-    use tower::ServiceExt;
-
-    #[tokio::test]
-    async fn health_check_returns_200() {
-        let response = app()
-            .oneshot(
-                Request::builder()
-                    .uri("/health-check")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
 }
