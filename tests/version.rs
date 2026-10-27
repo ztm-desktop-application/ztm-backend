@@ -30,6 +30,9 @@ async fn version_returns_date_based_semver() {
         parts.iter().all(|p| p.parse::<u64>().is_ok()),
         "expected numeric parts, got {version}"
     );
-    assert_eq!(parts[0].len(), 8, "expected YYYYMMDD major, got {version}");
     assert_eq!(parts[2], "0", "expected patch 0, got {version}");
+    // 0.0.0 until the first courses change is committed.
+    if version != "0.0.0" {
+        assert_eq!(parts[0].len(), 8, "expected YYYYMMDD major, got {version}");
+    }
 }

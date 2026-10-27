@@ -1,11 +1,17 @@
 //! Computes the server version at compile time and exposes it as the
 //! `APP_VERSION` env var for `env!`.
 //!
-//! The version is `YYYYMMDD.N.0`: the UTC date of the last commit on main,
-//! with N counting the earlier commits on main from that same day. Setting
-//! `APP_VERSION` in the build environment overrides this.
+//! The version is `YYYYMMDD.N.0`: the UTC date of the last commit on main
+//! that changed one of `VERSIONED_PATHS`, with N counting the earlier such
+//! commits from that same day. It is `0.0.0` until any of those paths has
+//! been committed. Setting `APP_VERSION` in the build environment overrides
+//! this.
 
 use std::{path::Path, process::Command};
+
+/// Paths whose changes bump the version. Merges that touch nothing here
+/// leave `/version` unchanged. Add new courses files (e.g. data) here.
+const VERSIONED_PATHS: &[&str] = &["src/routes/courses.rs", "src/routes/courses"];
 
 fn main() {
     println!("cargo:rerun-if-env-changed=APP_VERSION");
@@ -28,7 +34,8 @@ fn main() {
     println!("cargo:rustc-env=APP_VERSION={version}");
 }
 
-/// Builds `YYYYMMDD.N.0` from main's first-parent history, newest first.
+/// Builds `YYYYMMDD.N.0` from the commits on main's first-parent history
+/// that touched `VERSIONED_PATHS`, newest first.
 fn version_from_git() -> Option<String> {
     let output = Command::new("git")
         .args([
@@ -37,7 +44,9 @@ fn version_from_git() -> Option<String> {
             "--format=%cd",
             "--date=format-local:%Y%m%d",
             "HEAD",
+            "--",
         ])
+        .args(VERSIONED_PATHS)
         .env("TZ", "UTC")
         .output()
         .ok()?;
@@ -47,7 +56,10 @@ fn version_from_git() -> Option<String> {
 
     let stdout = String::from_utf8(output.stdout).ok()?;
     let mut dates = stdout.lines();
-    let date = dates.next()?;
+    let Some(date) = dates.next() else {
+        // None of the versioned paths has been committed yet.
+        return Some("0.0.0".to_string());
+    };
     let earlier_same_day = dates.take_while(|d| *d == date).count();
 
     Some(format!("{date}.{earlier_same_day}.0"))

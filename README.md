@@ -11,12 +11,13 @@ Axum backend for the ZTM desktop application.
 
 ## Versioning
 
-`GET /version` returns `{"version":"YYYYMMDD.N.0"}`, e.g. `{"version":"20261024.2.0"}`:
+`GET /version` returns `{"version":"YYYYMMDD.N.0"}`, e.g. `{"version":"20261024.2.0"}`. It tracks the courses content only, so merges that don't touch courses leave it unchanged:
 
-- `YYYYMMDD` is the UTC date of the last merge to `main` (the HEAD commit).
-- `N` counts the earlier merges to `main` on that same day, starting at 0.
+- `YYYYMMDD` is the UTC date of the last merge to `main` that changed a path in `VERSIONED_PATHS` (in `build.rs`; currently the `/courses` handler, `src/routes/courses.rs` or `src/routes/courses/`).
+- `N` counts the earlier courses-changing merges to `main` on that same day, starting at 0.
+- Until the first courses change is merged, the version is `0.0.0`.
 
-The version is valid semver, so clients can compare versions with any semver library; later merges always compare greater, including on the same day.
+The version is valid semver, so clients can compare versions with any semver library; later courses changes always compare greater, including on the same day. When courses gains new files (e.g. a data directory), add them to `VERSIONED_PATHS`.
 
 ```sh
 $ curl -s localhost:3000/version
